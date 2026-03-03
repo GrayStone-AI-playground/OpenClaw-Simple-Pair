@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"/><title>Pair Device</title></head>
+  <body>
+    <h1>Simple Pair</h1>
+    <p id="status">Checking...</p>
+    <input id="code" placeholder="R7KD-2M9Q" />
+    <button id="resolve">Resolve</button>
+    <button id="claim">Pair this device</button>
+    <pre id="out"></pre>
+    <script>
+      let sessionId = null;
+      async function check() {
+        const s = await fetch('/pair/status').then(r=>r.json());
+        document.getElementById('status').textContent = s.active ? `Active until ${s.expiresAt}` : 'Pairing not active';
+      }
+      document.getElementById('resolve').onclick = async () => {
+        const code = document.getElementById('code').value;
+        const r = await fetch('/pair/resolve',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code})});
+        const j = await r.json();
+        sessionId = j.sessionId;
+        document.getElementById('out').textContent = JSON.stringify(j,null,2);
+      };
+      document.getElementById('claim').onclick = async () => {
+        if(!sessionId){ alert('resolve first'); return; }
+        const r = await fetch('/pair/claim',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sessionId, client:{kind:'web'}})});
+        document.getElementById('out').textContent = JSON.stringify(await r.json(),null,2);
+      };
+      check();
+    </script>
+  </body>
+</html>
