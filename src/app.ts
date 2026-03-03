@@ -194,6 +194,7 @@ export function createApp() {
       return error(res, 401, 'expired', 'session expired');
     }
 
+    res.setHeader('x-forwarded-user', ps.user);
     res.json({ ok: true, user: ps.user, sessionId: ps.sessionId, expiresAt: new Date(ps.expiresAt).toISOString() });
   });
 
