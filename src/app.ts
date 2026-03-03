@@ -1,5 +1,7 @@
 import express from "express";
 import path from "node:path";
+import fs from "node:fs";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { PairStore } from "./store.js";
 import { requireApprove, requireStart } from "./auth.js";
@@ -32,6 +34,21 @@ function createWindowRateLimiter(limit: number, windowMs: number) {
 
 const allowResolve = createWindowRateLimiter(12, 60_000);
 const allowClaim = createWindowRateLimiter(10, 60_000);
+
+type Handoff = { id: string; sessionId: string; expiresAt: number; used: boolean };
+const handoffs = new Map<string, Handoff>();
+
+function readGatewayToken(): string | null {
+  const fromEnv = process.env.GATEWAY_AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN;
+  if (fromEnv) return fromEnv;
+  try {
+    const raw = fs.readFileSync('/home/user/.openclaw/openclaw.json', 'utf8');
+    const j = JSON.parse(raw);
+    return j?.gateway?.auth?.token || null;
+  } catch {
+    return null;
+  }
+}
 
 export function createApp() {
   const app = express();
@@ -136,6 +153,32 @@ export function createApp() {
     res.json({ status: s.state, requestId: s.requestId });
   });
 
+  app.post('/pair/handoff/create', (req, res) => {
+    const sessionId = String(req.body?.sessionId || '');
+    const s = store.get(sessionId);
+    if (!s) return error(res, 404, 'not_found', 'session not found');
+    if (s.state !== 'approved') return error(res, 409, 'not_ready', 'pairing not approved yet');
+
+    const id = crypto.randomBytes(12).toString('base64url');
+    const expiresAt = Date.now() + 60_000;
+    handoffs.set(id, { id, sessionId, expiresAt, used: false });
+    res.json({ ok: true, handoffId: id, handoffUrl: `/pair/handoff/${id}`, expiresAt: new Date(expiresAt).toISOString() });
+  });
+
+  app.post('/pair/handoff/redeem', (req, res) => {
+    const handoffId = String(req.body?.handoffId || '');
+    const h = handoffs.get(handoffId);
+    if (!h) return error(res, 404, 'not_found', 'handoff not found');
+    if (h.used) return error(res, 409, 'used', 'handoff already used');
+    if (h.expiresAt < Date.now()) return error(res, 410, 'expired', 'handoff expired');
+
+    const token = readGatewayToken();
+    if (!token) return error(res, 500, 'gateway_token_unavailable', 'gateway token unavailable');
+
+    h.used = true;
+    res.json({ ok: true, dashboardUrl: 'https://localhost/', gatewayToken: token, note: 'One-time handoff redeemed. Paste token in Control UI settings.' });
+  });
+
   app.get("/pair/pending", requireApprove, (_req, res) => {
     const pending = store.pendingList().map((p) => ({
       requestId: p.requestId,
@@ -232,6 +275,10 @@ export function createApp() {
     const active = store.active();
     if (!active) return res.status(404).send("Pairing is not active");
     res.sendFile(path.join(__dirname, "../public/pair.html"));
+  });
+
+  app.get('/pair/handoff/:id', (_req, res) => {
+    res.sendFile(path.join(__dirname, '../public/handoff.html'));
   });
 
   app.get("/pair/:code", (req, res) => {
