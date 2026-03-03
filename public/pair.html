@@ -10,6 +10,12 @@
     <pre id="out"></pre>
     <script>
       let sessionId = null;
+      function prefillCodeFromPath() {
+        const parts = window.location.pathname.split('/').filter(Boolean);
+        if (parts.length === 2 && parts[0] === 'pair') {
+          document.getElementById('code').value = decodeURIComponent(parts[1]).toUpperCase();
+        }
+      }
       async function check() {
         const s = await fetch('/pair/status').then(r=>r.json());
         document.getElementById('status').textContent = s.active ? `Active until ${s.expiresAt}` : 'Pairing not active';
@@ -26,6 +32,7 @@
         const r = await fetch('/pair/claim',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sessionId, client:{kind:'web'}})});
         document.getElementById('out').textContent = JSON.stringify(await r.json(),null,2);
       };
+      prefillCodeFromPath();
       check();
     </script>
   </body>
