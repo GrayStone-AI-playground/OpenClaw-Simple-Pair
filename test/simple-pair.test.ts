@@ -66,4 +66,23 @@ describe('simple pair api', () => {
     expect(latest.status).toBe(200);
     expect(latest.body.approved).toBe(true);
   });
+
+  it('requires explicit selection when multiple pending exist', async () => {
+    const app = createApp();
+    // first pending
+    const s1 = await request(app).post('/simple_pair').set('x-role', 'owner').send({ ttlSeconds: 120 });
+    const r1 = await request(app).post('/pair/resolve').send({ code: s1.body.shortCode });
+    await request(app).post('/pair/claim').send({ sessionId: r1.body.sessionId, client: { kind: 'web' } });
+
+    // second pending (new simple_pair after first moved to pending_approval)
+    const s2 = await request(app).post('/simple_pair').set('x-role', 'owner').send({ ttlSeconds: 120 });
+    const r2 = await request(app).post('/pair/resolve').send({ code: s2.body.shortCode });
+    await request(app).post('/pair/claim').send({ sessionId: r2.body.sessionId, client: { kind: 'web' } });
+
+    const latest = await request(app).post('/pair/approve-latest').set('x-role', 'owner').send({});
+    expect(latest.status).toBe(409);
+    expect(latest.body.error.code).toBe('multiple_pending');
+    expect(Array.isArray(latest.body.pending)).toBe(true);
+    expect(latest.body.pending.length).toBeGreaterThan(1);
+  });
 });
