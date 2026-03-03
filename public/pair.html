@@ -36,7 +36,7 @@
         const j = await r.json();
         let hint = '';
         if (j?.approval?.nextCommand) {
-          hint = `\n\nAdmin next step:\n- Telegram: ${j.approval.nextCommand}\n- Or web approve via ${j.approval.webEndpoint} with requestId: ${j.requestId}`;
+          hint = `\n\nAdmin next step:\n- Telegram: ${j.approval.nextCommand}\n- Or web approve via ${j.approval.webEndpoint}\n- Current requestId: ${j.requestId}`;
         }
         document.getElementById('out').textContent = JSON.stringify(j,null,2) + hint;
       };

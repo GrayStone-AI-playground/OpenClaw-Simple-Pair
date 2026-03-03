@@ -61,6 +61,13 @@ export class PairStore {
     return s;
   }
 
+  latestPending() {
+    this.expireOld();
+    const pending = [...this.sessions.values()].filter((s) => s.state === "pending_approval" && s.requestId);
+    pending.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return pending[0];
+  }
+
   expireOld() {
     const now = Date.now();
     for (const s of this.sessions.values()) {

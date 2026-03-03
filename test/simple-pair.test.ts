@@ -31,6 +31,7 @@ describe('simple pair api', () => {
 
     const claim = await request(app).post('/pair/claim').send({ sessionId: sid, client: { kind: 'web' } });
     expect(claim.status).toBe(200);
+    expect(claim.body.approval?.nextCommand).toBe('/simple_pair_approve');
 
     const approveViewer = await request(app)
       .post('/pair/approve')
@@ -53,5 +54,16 @@ describe('simple pair api', () => {
     const second = await request(app).post('/simple_pair').set('x-role', 'owner').send({ ttlSeconds: 120 });
     expect(second.status).toBe(200);
     expect(second.body.reused).toBe(true);
+  });
+
+  it('owner can approve latest pending without requestId', async () => {
+    const app = createApp();
+    const start = await request(app).post('/simple_pair').set('x-role', 'owner').send({ ttlSeconds: 120 });
+    const resolve = await request(app).post('/pair/resolve').send({ code: start.body.shortCode });
+    await request(app).post('/pair/claim').send({ sessionId: resolve.body.sessionId, client: { kind: 'web' } });
+
+    const latest = await request(app).post('/pair/approve-latest').set('x-role', 'owner').send({});
+    expect(latest.status).toBe(200);
+    expect(latest.body.approved).toBe(true);
   });
 });
