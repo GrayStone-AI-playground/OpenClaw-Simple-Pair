@@ -10,6 +10,14 @@ describe('simple pair api', () => {
     expect(r.status).toBe(403);
   });
 
+  it('pair page is gated by active pairing window', async () => {
+    const before = await request(app).get('/pair');
+    expect(before.status).toBe(404);
+    await request(app).post('/simple_pair').set('x-role','owner').send({ ttlSeconds: 120 });
+    const after = await request(app).get('/pair');
+    expect(after.status).toBe(200);
+  });
+
   it('owner can start, claim and approve', async () => {
     const start = await request(app).post('/simple_pair').set('x-role','owner').send({ ttlSeconds: 120 });
     expect(start.status).toBe(200);
