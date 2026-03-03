@@ -30,7 +30,12 @@
       document.getElementById('claim').onclick = async () => {
         if(!sessionId){ alert('resolve first'); return; }
         const r = await fetch('/pair/claim',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sessionId, client:{kind:'web'}})});
-        document.getElementById('out').textContent = JSON.stringify(await r.json(),null,2);
+        const j = await r.json();
+        let hint = '';
+        if (j?.approval?.nextCommand) {
+          hint = `\n\nAdmin next step:\n- Telegram: ${j.approval.nextCommand}\n- Or web approve via ${j.approval.webEndpoint} with requestId: ${j.requestId}`;
+        }
+        document.getElementById('out').textContent = JSON.stringify(j,null,2) + hint;
       };
       prefillCodeFromPath();
       check();
