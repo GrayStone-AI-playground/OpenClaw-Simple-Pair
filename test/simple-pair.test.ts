@@ -81,6 +81,25 @@ describe('simple pair api', () => {
     expect(tgApprove.body.approved).toBe(true);
   });
 
+  it('handoff can be created after approval and redeemed once', async () => {
+    const app = createApp();
+    const start = await request(app).post('/simple_pair').set('x-role', 'owner').send({ ttlSeconds: 120 });
+    const resolve = await request(app).post('/pair/resolve').send({ code: start.body.shortCode });
+    const claim = await request(app).post('/pair/claim').send({ sessionId: resolve.body.sessionId, client: { kind: 'web' } });
+    await request(app).post('/pair/approve').set('x-role', 'owner').send({ requestId: claim.body.requestId });
+
+    const create = await request(app).post('/pair/handoff/create').send({ sessionId: resolve.body.sessionId });
+    expect(create.status).toBe(200);
+    const handoffId = create.body.handoffId;
+
+    const redeem1 = await request(app).post('/pair/handoff/redeem').send({ handoffId });
+    expect(redeem1.status).toBe(200);
+    expect(redeem1.body.ok).toBe(true);
+
+    const redeem2 = await request(app).post('/pair/handoff/redeem').send({ handoffId });
+    expect(redeem2.status).toBe(409);
+  });
+
   it('requires explicit selection when multiple pending exist', async () => {
     const app = createApp();
     // first pending

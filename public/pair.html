@@ -7,9 +7,11 @@
     <input id="code" placeholder="R7KD-2M9Q" />
     <button id="resolve">Resolve</button>
     <button id="claim" style="display:none;">Pair this device</button>
+    <button id="complete" style="display:none;">Complete Dashboard Sign-in</button>
     <pre id="out"></pre>
     <script>
       let sessionId = null;
+      let approvedPoll = null;
       function prefillCodeFromPath() {
         const parts = window.location.pathname.split('/').filter(Boolean);
         if (parts.length === 2 && parts[0] === 'pair') {
@@ -39,6 +41,25 @@
           hint = `\n\nAdmin next step:\n- Telegram: ${j.approval.nextCommand}\n- Or web approve via ${j.approval.webEndpoint}\n- Current requestId: ${j.requestId}`;
         }
         document.getElementById('out').textContent = JSON.stringify(j,null,2) + hint;
+
+        if (approvedPoll) clearInterval(approvedPoll);
+        approvedPoll = setInterval(async () => {
+          const st = await fetch(`/pair/claim-status?sessionId=${encodeURIComponent(sessionId)}`).then(x=>x.json()).catch(()=>null);
+          if (st?.status === 'approved') {
+            clearInterval(approvedPoll);
+            document.getElementById('complete').style.display = 'inline-block';
+          }
+        }, 2000);
+      };
+      document.getElementById('complete').onclick = async () => {
+        if(!sessionId){ alert('No session'); return; }
+        const r = await fetch('/pair/handoff/create',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sessionId})});
+        const j = await r.json();
+        if (!j?.handoffUrl) {
+          document.getElementById('out').textContent = JSON.stringify(j,null,2);
+          return;
+        }
+        window.location.href = j.handoffUrl;
       };
       prefillCodeFromPath();
       check();

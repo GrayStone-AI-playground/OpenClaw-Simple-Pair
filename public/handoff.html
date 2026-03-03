@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"/><title>Dashboard Handoff</title></head>
+  <body>
+    <h1>Dashboard Handoff</h1>
+    <p id="status">Redeeming one-time handoff…</p>
+    <p><a id="dash" href="#" style="display:none;">Open Dashboard</a></p>
+    <textarea id="token" rows="4" cols="90" style="display:none;"></textarea>
+    <p id="note"></p>
+    <script>
+      async function run(){
+        const parts = window.location.pathname.split('/').filter(Boolean);
+        const handoffId = parts[2] || '';
+        const r = await fetch('/pair/handoff/redeem',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({handoffId})});
+        const j = await r.json();
+        if(!j.ok){
+          document.getElementById('status').textContent = 'Handoff failed: ' + (j?.error?.message || 'unknown');
+          return;
+        }
+        document.getElementById('status').textContent = 'Handoff ready. Paste token into Control UI settings.';
+        const a=document.getElementById('dash');
+        a.href = j.dashboardUrl;
+        a.style.display='inline';
+        const t=document.getElementById('token');
+        t.value = j.gatewayToken;
+        t.style.display='block';
+        document.getElementById('note').textContent = j.note || '';
+      }
+      run();
+    </script>
+  </body>
+</html>
