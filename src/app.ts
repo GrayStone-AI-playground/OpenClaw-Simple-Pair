@@ -1,6 +1,5 @@
 import express from "express";
 import path from "node:path";
-import fs from "node:fs";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { PairStore } from "./store.js";
@@ -36,18 +35,16 @@ const allowResolve = createWindowRateLimiter(12, 60_000);
 const allowClaim = createWindowRateLimiter(10, 60_000);
 
 type Handoff = { id: string; sessionId: string; expiresAt: number; used: boolean };
+type ProxySession = { id: string; sessionId: string; user: string; expiresAt: number };
 const handoffs = new Map<string, Handoff>();
+const proxySessions = new Map<string, ProxySession>();
 
-function readGatewayToken(): string | null {
-  const fromEnv = process.env.GATEWAY_AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN;
-  if (fromEnv) return fromEnv;
-  try {
-    const raw = fs.readFileSync('/home/user/.openclaw/openclaw.json', 'utf8');
-    const j = JSON.parse(raw);
-    return j?.gateway?.auth?.token || null;
-  } catch {
-    return null;
-  }
+function parseCookie(header: string | undefined, name: string): string | null {
+  if (!header) return null;
+  const parts = header.split(';').map((x) => x.trim());
+  const found = parts.find((p) => p.startsWith(name + '='));
+  if (!found) return null;
+  return decodeURIComponent(found.slice(name.length + 1));
 }
 
 export function createApp() {
@@ -172,11 +169,32 @@ export function createApp() {
     if (h.used) return error(res, 409, 'used', 'handoff already used');
     if (h.expiresAt < Date.now()) return error(res, 410, 'expired', 'handoff expired');
 
-    const token = readGatewayToken();
-    if (!token) return error(res, 500, 'gateway_token_unavailable', 'gateway token unavailable');
-
     h.used = true;
-    res.json({ ok: true, dashboardUrl: 'https://localhost/', gatewayToken: token, note: 'One-time handoff redeemed. Paste token in Control UI settings.' });
+    const sid = crypto.randomBytes(18).toString('base64url');
+    const expiresAt = Date.now() + 10 * 60_000;
+    proxySessions.set(sid, { id: sid, sessionId: h.sessionId, user: 'paired-user', expiresAt });
+
+    res.setHeader('Set-Cookie', `sp_handoff_session=${encodeURIComponent(sid)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`);
+    res.json({
+      ok: true,
+      dashboardUrl: 'https://localhost/',
+      note: 'One-time handoff redeemed. Proxy session cookie issued. (Gateway trusted-proxy mode required for full passwordless dashboard login.)',
+      proxyReady: true
+    });
+  });
+
+  app.get('/auth/session/validate', (req, res) => {
+    const sid = parseCookie(req.header('cookie'), 'sp_handoff_session');
+    if (!sid) return error(res, 401, 'unauthorized', 'missing session cookie');
+
+    const ps = proxySessions.get(sid);
+    if (!ps) return error(res, 401, 'unauthorized', 'invalid session');
+    if (ps.expiresAt < Date.now()) {
+      proxySessions.delete(sid);
+      return error(res, 401, 'expired', 'session expired');
+    }
+
+    res.json({ ok: true, user: ps.user, sessionId: ps.sessionId, expiresAt: new Date(ps.expiresAt).toISOString() });
   });
 
   app.get("/pair/pending", requireApprove, (_req, res) => {
