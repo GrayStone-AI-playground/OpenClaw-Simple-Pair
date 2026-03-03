@@ -67,6 +67,20 @@ describe('simple pair api', () => {
     expect(latest.body.approved).toBe(true);
   });
 
+  it('telegram explicit approve endpoint works with requestId', async () => {
+    const app = createApp();
+    const start = await request(app).post('/simple_pair').set('x-role', 'owner').send({ ttlSeconds: 120 });
+    const resolve = await request(app).post('/pair/resolve').send({ code: start.body.shortCode });
+    const claim = await request(app).post('/pair/claim').send({ sessionId: resolve.body.sessionId, client: { kind: 'web' } });
+
+    const tgApprove = await request(app)
+      .post('/telegram/simple_pair/approve')
+      .set('x-telegram-owner', 'true')
+      .send({ requestId: claim.body.requestId });
+    expect(tgApprove.status).toBe(200);
+    expect(tgApprove.body.approved).toBe(true);
+  });
+
   it('requires explicit selection when multiple pending exist', async () => {
     const app = createApp();
     // first pending
