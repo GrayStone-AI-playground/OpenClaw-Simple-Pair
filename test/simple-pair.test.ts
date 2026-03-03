@@ -51,6 +51,7 @@ describe('simple pair api', () => {
     expect(first.status).toBe(200);
 
     const second = await request(app).post('/simple_pair').set('x-role', 'owner').send({ ttlSeconds: 120 });
-    expect(second.status).toBe(409);
+    expect(second.status).toBe(200);
+    expect(second.body.reused).toBe(true);
   });
 });
