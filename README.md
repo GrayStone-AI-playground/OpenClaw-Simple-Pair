@@ -60,33 +60,6 @@ You can run this system in two modes:
 
 ---
 
-## API/route summary
-
-### Pairing
-- `POST /simple_pair`
-- `GET /pair`
-- `GET /pair/:code`
-- `POST /pair/resolve`
-- `POST /pair/claim`
-- `GET /pair/claim-status`
-- `GET /pair/pending`
-- `POST /pair/approve`
-- `POST /pair/approve-latest`
-
-### Telegram-facing helper endpoints
-- `POST /telegram/simple_pair`
-- `GET /telegram/simple_pair/pending`
-- `POST /telegram/simple_pair/approve`
-- `POST /telegram/simple_pair/approve-latest`
-
-### Auth handoff
-- `POST /pair/handoff/create`
-- `GET /pair/handoff/:id`
-- `POST /pair/handoff/redeem`
-- `GET /auth/session/validate`
-
----
-
 ## Run
 
 ```bash
@@ -102,6 +75,8 @@ npm start
 
 - `docs/IMPLEMENTATION-NOTES.md`
   - Current behavior and implementation details
+- `docs/API-REFERENCE.md`
+  - Endpoint inventory (pairing, telegram helpers, auth handoff)
 - `docs/VALIDATION.md`
   - Test/build/smoke validation commands and expected outcomes
 - `docs/AUTH-MODE-SWITCH.md`
