@@ -13,23 +13,25 @@ Current test suite: **8 passing**.
 
 ```bash
 # run service
-PORT=43143 node dist/index.js
+PORT=<PORT> node dist/index.js
 
 # in another shell
-curl -sS -H 'content-type: application/json' -H 'x-role: owner' -d '{}' http://127.0.0.1:43143/simple_pair
-curl -sS -H 'content-type: application/json' -d '{"code":"<SHORT_CODE>"}' http://127.0.0.1:43143/pair/resolve
-curl -sS -H 'content-type: application/json' -d '{"sessionId":"<SESSION_ID>","client":{"kind":"web"}}' http://127.0.0.1:43143/pair/claim
+BASE_URL="http://<HOST>:<PORT>"
+
+curl -sS -H 'content-type: application/json' -H 'x-role: owner' -d '{}' "$BASE_URL/simple_pair"
+curl -sS -H 'content-type: application/json' -d '{"code":"<SHORT_CODE>"}' "$BASE_URL/pair/resolve"
+curl -sS -H 'content-type: application/json' -d '{"sessionId":"<SESSION_ID>","client":{"kind":"web"}}' "$BASE_URL/pair/claim"
 
 # approve latest (single pending)
-curl -sS -H 'content-type: application/json' -H 'x-role: owner' -d '{}' http://127.0.0.1:43143/pair/approve-latest
+curl -sS -H 'content-type: application/json' -H 'x-role: owner' -d '{}' "$BASE_URL/pair/approve-latest"
 
 # explicit approve (multi-pending safe path)
-curl -sS -H 'content-type: application/json' -H 'x-role: owner' -d '{"requestId":"<REQUEST_ID>"}' http://127.0.0.1:43143/pair/approve
+curl -sS -H 'content-type: application/json' -H 'x-role: owner' -d '{"requestId":"<REQUEST_ID>"}' "$BASE_URL/pair/approve"
 
 # handoff
-curl -sS -H 'content-type: application/json' -d '{"sessionId":"<APPROVED_SESSION_ID>"}' http://127.0.0.1:43143/pair/handoff/create
-curl -i -sS -H 'content-type: application/json' -d '{"handoffId":"<HANDOFF_ID>"}' http://127.0.0.1:43143/pair/handoff/redeem
-curl -sS -H 'Cookie: sp_handoff_session=<COOKIE_VALUE>' http://127.0.0.1:43143/auth/session/validate
+curl -sS -H 'content-type: application/json' -d '{"sessionId":"<APPROVED_SESSION_ID>"}' "$BASE_URL/pair/handoff/create"
+curl -i -sS -H 'content-type: application/json' -d '{"handoffId":"<HANDOFF_ID>"}' "$BASE_URL/pair/handoff/redeem"
+curl -sS -H 'Cookie: sp_handoff_session=<COOKIE_VALUE>' "$BASE_URL/auth/session/validate"
 ```
 
 ## Expected outcomes
