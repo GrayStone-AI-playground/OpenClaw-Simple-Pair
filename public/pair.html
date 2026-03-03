@@ -6,7 +6,7 @@
     <p id="status">Checking...</p>
     <input id="code" placeholder="R7KD-2M9Q" />
     <button id="resolve">Resolve</button>
-    <button id="claim">Pair this device</button>
+    <button id="claim" style="display:none;">Pair this device</button>
     <pre id="out"></pre>
     <script>
       let sessionId = null;
@@ -25,10 +25,13 @@
         const r = await fetch('/pair/resolve',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code})});
         const j = await r.json();
         sessionId = j.sessionId;
+        if (j?.ok && j?.sessionId) {
+          document.getElementById('claim').style.display = 'inline-block';
+        }
         document.getElementById('out').textContent = JSON.stringify(j,null,2);
       };
       document.getElementById('claim').onclick = async () => {
-        if(!sessionId){ alert('resolve first'); return; }
+        if(!sessionId){ alert('Resolve first'); return; }
         const r = await fetch('/pair/claim',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sessionId, client:{kind:'web'}})});
         const j = await r.json();
         let hint = '';
