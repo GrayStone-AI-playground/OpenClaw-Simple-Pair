@@ -1,40 +1,47 @@
 # Validation (2026-03-03 UTC)
 
-## Commands
+## Automated
 
 ```bash
 npm test
 npm run build
 ```
 
-Server smoke test and endpoint checks:
+Current test suite: **8 passing**.
+
+## Local smoke checks
 
 ```bash
+# run service
 PORT=43143 node dist/index.js
 
-# separate shell (curl checks)
-curl -sS -o /tmp/pair_inactive.out -w '%{http_code}' http://127.0.0.1:43143/pair
-curl -sS -H 'content-type: application/json' -H 'x-role: owner' -d '{"ttlSeconds":300}' http://127.0.0.1:43143/simple_pair
-curl -sS -o /tmp/pair_active.out -w '%{http_code}' http://127.0.0.1:43143/pair
-curl -sS -o /tmp/pair_prefill.out -w '%{http_code}' http://127.0.0.1:43143/pair/<SHORT_CODE>
-curl -sS http://127.0.0.1:43143/pair/status
+# in another shell
+curl -sS -H 'content-type: application/json' -H 'x-role: owner' -d '{}' http://127.0.0.1:43143/simple_pair
 curl -sS -H 'content-type: application/json' -d '{"code":"<SHORT_CODE>"}' http://127.0.0.1:43143/pair/resolve
 curl -sS -H 'content-type: application/json' -d '{"sessionId":"<SESSION_ID>","client":{"kind":"web"}}' http://127.0.0.1:43143/pair/claim
+
+# approve latest (single pending)
+curl -sS -H 'content-type: application/json' -H 'x-role: owner' -d '{}' http://127.0.0.1:43143/pair/approve-latest
+
+# explicit approve (multi-pending safe path)
 curl -sS -H 'content-type: application/json' -H 'x-role: owner' -d '{"requestId":"<REQUEST_ID>"}' http://127.0.0.1:43143/pair/approve
-curl -sS 'http://127.0.0.1:43143/pair/claim-status?sessionId=<SESSION_ID>'
+
+# handoff
+curl -sS -H 'content-type: application/json' -d '{"sessionId":"<APPROVED_SESSION_ID>"}' http://127.0.0.1:43143/pair/handoff/create
+curl -i -sS -H 'content-type: application/json' -d '{"handoffId":"<HANDOFF_ID>"}' http://127.0.0.1:43143/pair/handoff/redeem
+curl -sS -H 'Cookie: sp_handoff_session=<COOKIE_VALUE>' http://127.0.0.1:43143/auth/session/validate
 ```
 
-## Results (sample run)
+## Expected outcomes
 
-- `npm test`: **PASS** (4 tests)
-- `npm run build`: **PASS**
-- `/pair` before start: **404** (`Pairing is not active`)
-- `POST /simple_pair` (owner): **200** with `sessionId`, `shortCode`, `prefillUrl`
-- `/pair` after start: **200**
-- `/pair/:code` while active: **200**
-- `GET /pair/status`: **active: true** + `expiresAt`
-- `POST /pair/resolve`: **200** + `requiresConfirm: true`
-- `POST /pair/claim`: **200** + `pending: true` + `requestId`
-- `POST /pair/approve` (owner): **200** + `approved: true`
-- `GET /pair/claim-status`: `status: approved`
-- `/pair` after approval: **404** (window no longer active)
+- `/pair` inactive returns `404 Pairing is not active`
+- `/simple_pair` returns session + short code
+- `/pair/claim` returns `nextCommand: /simple_pair_approve`
+- `/pair/approve-latest`:
+  - one pending => approve success
+  - multiple pending => `409 multiple_pending` + pending list
+- `/pair/handoff/redeem`:
+  - returns `proxyReady: true`
+  - no `gatewayToken` field
+  - sets `sp_handoff_session` cookie
+- `/auth/session/validate` returns `{ ok: true, user, sessionId }` with valid cookie
