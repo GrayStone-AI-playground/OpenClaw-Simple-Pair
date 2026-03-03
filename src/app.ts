@@ -46,7 +46,7 @@ export function createApp() {
 
   app.post("/simple_pair", requireStart, (req, res) => {
     const existing = store.active();
-    if (existing) {
+    if (existing && existing.state === "issued") {
       return res.json({
         ok: true,
         reused: true,
@@ -136,6 +136,17 @@ export function createApp() {
     res.json({ status: s.state, requestId: s.requestId });
   });
 
+  app.get("/pair/pending", requireApprove, (_req, res) => {
+    const pending = store.pendingList().map((p) => ({
+      requestId: p.requestId,
+      sessionId: p.sessionId,
+      createdAt: p.createdAt,
+      deviceName: p.claimMeta?.deviceName,
+      clientKind: p.claimMeta?.clientKind
+    }));
+    res.json({ pending });
+  });
+
   app.post("/pair/approve", requireApprove, (req, res) => {
     const requestId = String(req.body?.requestId || "");
     const s = store.approve(requestId);
@@ -145,7 +156,15 @@ export function createApp() {
   });
 
   app.post("/pair/approve-latest", requireApprove, (req, res) => {
-    const latest = store.latestPending();
+    const pending = store.pendingList();
+    if (pending.length === 0) return error(res, 404, "not_found", "no pending approval request");
+    if (pending.length > 1) {
+      return res.status(409).json({
+        error: { code: "multiple_pending", message: "multiple pending approval requests; specify requestId" },
+        pending: pending.map((p) => ({ requestId: p.requestId, sessionId: p.sessionId, createdAt: p.createdAt, deviceName: p.claimMeta?.deviceName }))
+      });
+    }
+    const latest = pending[0];
     if (!latest?.requestId) return error(res, 404, "not_found", "no pending approval request");
     const s = store.approve(latest.requestId);
     if (!s) return error(res, 404, "not_found", "request not found or invalid state");
@@ -158,7 +177,7 @@ export function createApp() {
     if (!owner) return error(res, 403, "forbidden", "owner only");
 
     const existing = store.active();
-    if (existing) {
+    if (existing && existing.state === "issued") {
       return res.json({ ok: true, reused: true, message: `Simple Pair active. Code: ${existing.shortCode}. URL: /pair/${existing.shortCode}. Expires: ${existing.expiresAt}` });
     }
 
@@ -171,7 +190,16 @@ export function createApp() {
     const owner = String(req.header("x-telegram-owner") || "false") === "true";
     if (!owner) return error(res, 403, "forbidden", "owner only");
 
-    const latest = store.latestPending();
+    const pending = store.pendingList();
+    if (pending.length === 0) return error(res, 404, "not_found", "no pending approval request");
+    if (pending.length > 1) {
+      return res.status(409).json({
+        error: { code: "multiple_pending", message: "multiple pending approval requests; specify requestId" },
+        pending: pending.map((p) => ({ requestId: p.requestId, sessionId: p.sessionId, createdAt: p.createdAt, deviceName: p.claimMeta?.deviceName }))
+      });
+    }
+
+    const latest = pending[0];
     if (!latest?.requestId) return error(res, 404, "not_found", "no pending approval request");
     const s = store.approve(latest.requestId);
     if (!s) return error(res, 404, "not_found", "request not found or invalid state");
