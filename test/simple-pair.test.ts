@@ -81,7 +81,7 @@ describe('simple pair api', () => {
     expect(tgApprove.body.approved).toBe(true);
   });
 
-  it('handoff can be created after approval and redeemed once', async () => {
+  it('handoff can be created after approval, redeemed once, and yields proxy session', async () => {
     const app = createApp();
     const start = await request(app).post('/simple_pair').set('x-role', 'owner').send({ ttlSeconds: 120 });
     const resolve = await request(app).post('/pair/resolve').send({ code: start.body.shortCode });
@@ -95,6 +95,13 @@ describe('simple pair api', () => {
     const redeem1 = await request(app).post('/pair/handoff/redeem').send({ handoffId });
     expect(redeem1.status).toBe(200);
     expect(redeem1.body.ok).toBe(true);
+    expect(redeem1.body.gatewayToken).toBeUndefined();
+    const setCookie = redeem1.headers['set-cookie'];
+    expect(Array.isArray(setCookie)).toBe(true);
+
+    const validate = await request(app).get('/auth/session/validate').set('Cookie', setCookie[0]);
+    expect(validate.status).toBe(200);
+    expect(validate.body.ok).toBe(true);
 
     const redeem2 = await request(app).post('/pair/handoff/redeem').send({ handoffId });
     expect(redeem2.status).toBe(409);
