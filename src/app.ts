@@ -120,7 +120,12 @@ export function createApp() {
       ok: true,
       pending: true,
       requestId: claimed?.requestId,
-      approval: { method: "telegram_or_web", instruction: "Owner approve required" }
+      approval: {
+        method: "telegram_or_web",
+        instruction: "Owner approval required",
+        nextCommand: "/pair approve",
+        webEndpoint: "POST /pair/approve"
+      }
     });
   });
 
