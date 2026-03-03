@@ -20,58 +20,43 @@ This split is intentional. You can use only the Pairing layer if you want to kee
 
 ---
 
-## Conceptual model
+## Unified flow model (Pairing + Auth)
 
-### A) Pairing layer (can be used standalone)
+You can run this system in two modes:
 
-This is the core onboarding workflow.
+- **Pairing-only mode**: use device pairing workflow, keep existing dashboard auth (token/paste/manual).
+- **Pairing + handoff mode**: use pairing plus one-time handoff and proxy session for smoother dashboard entry.
 
-**Admin starts pairing**
-- Start from web/admin side via `/simple_pair`.
-- If an issued session is active, it is reused.
+### End-to-end pairing flow (with Telegram/Web mapping)
 
-**User claims pairing session**
-- Open `/pair` (or `/pair/:code` prefill).
-- Resolve short code.
-- Explicitly click **Pair this device**.
+1. **Admin starts pairing session**
+   - Web/API: `POST /simple_pair`
+   - Telegram command: `/simple_pair`
+   - Behavior: reuses active issued session; otherwise creates a new one.
 
-**Admin approves**
-- Fast path: approve latest when only one pending exists.
-- Safe path: when multiple are pending, admin must choose explicit `requestId`.
+2. **User claims pairing session**
+   - Web: open `/pair` (or `/pair/:code` prefill), resolve code, click **Pair this device**.
+   - Output includes next admin step and request context.
 
-This layer works independently of trusted-proxy auth and can be used even if dashboard auth remains token-based.
+3. **Admin approves pending request**
+   - Web/API fast path: `POST /pair/approve-latest`
+   - Telegram fast path: `/simple_pair_approve`
+   - If multiple pending:
+     - Web/API explicit: `POST /pair/approve` with `requestId`
+     - Telegram explicit: `/simple_pair_approve <requestId>`
 
-### B) Auth handoff layer (optional)
+### Optional auth handoff flow (post-approval)
 
-After pairing approval, this layer provides a one-time transition toward dashboard access:
+4. **User initiates dashboard handoff**
+   - Web: click **Complete Dashboard Sign-in** on `/pair` after approval.
+   - Backend issues one-time handoff id (`/pair/handoff/*`).
 
-- One-time handoff IDs (`/pair/handoff/*`)
-- One-time redeem
-- HttpOnly proxy session cookie (`sp_handoff_session`)
-- Session validator endpoint (`/auth/session/validate`)
+5. **One-time redeem + proxy session**
+   - Redeem endpoint sets short-lived HttpOnly cookie (`sp_handoff_session`).
+   - Validator endpoint (`/auth/session/validate`) confirms session and emits identity header for proxy integration.
 
-Important: full passwordless dashboard experience requires Gateway trusted-proxy integration (see docs below).
-
----
-
-## Expected end-to-end flow
-
-### Pairing flow
-
-1. Admin starts `/simple_pair`.
-2. User opens `/pair` and enters/resolves short code.
-3. User clicks **Pair this device**.
-4. Admin approves:
-   - single pending: `/simple_pair_approve`
-   - multiple pending: approve by explicit `requestId`
-
-### Auth handoff flow (optional)
-
-1. Pairing is approved.
-2. User clicks **Complete Dashboard Sign-in**.
-3. Backend issues one-time handoff and then a short-lived proxy session cookie.
-4. Browser is redirected to dashboard path.
-5. Reverse proxy + trusted-proxy auth integration validates cookie/identity path.
+6. **Dashboard access**
+   - For true tokenless access, run Gateway in trusted-proxy mode and wire reverse proxy forward-auth (details in `docs/AUTH-MODE-SWITCH.md`).
 
 ---
 
