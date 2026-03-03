@@ -17,3 +17,6 @@ npm start
 
 ## Note
 This repo provides standalone implementation scaffolding. Integrate with your OpenClaw dashboard auth/session middleware in your host application.
+
+## Validation
+See `docs/VALIDATION.md` for test/build/smoke-check commands and sample outputs.
