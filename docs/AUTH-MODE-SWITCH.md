@@ -14,7 +14,7 @@ This project now supports a tokenless one-time handoff on the simple-pair side v
 To complete tokenless dashboard access, OpenClaw Gateway must run in:
 
 - `gateway.auth.mode = "trusted-proxy"`
-- `gateway.trustedProxies = ["127.0.0.1", "::1"]` (for same-host Caddy)
+- `gateway.trustedProxies = ["<PROXY_IP_V4>", "<PROXY_IP_V6>"]` (for same-host Caddy, typically loopback addresses)
 - `gateway.auth.trustedProxy.userHeader = "x-forwarded-user"`
 - optional `allowUsers` e.g. `"paired-user"`
 
