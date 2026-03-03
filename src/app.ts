@@ -175,9 +175,10 @@ export function createApp() {
     proxySessions.set(sid, { id: sid, sessionId: h.sessionId, user: 'paired-user', expiresAt });
 
     res.setHeader('Set-Cookie', `sp_handoff_session=${encodeURIComponent(sid)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`);
+    const dashboardUrl = `${req.protocol}://${req.get('host') || 'localhost'}/`;
     res.json({
       ok: true,
-      dashboardUrl: 'https://uben-claw.lan/',
+      dashboardUrl,
       note: 'One-time handoff redeemed. Proxy session cookie issued. (Gateway trusted-proxy mode required for full passwordless dashboard login.)',
       proxyReady: true
     });
