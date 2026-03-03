@@ -186,6 +186,27 @@ export function createApp() {
     res.json({ ok: true, reused: false, message: `Simple Pair started. Code: ${s.shortCode}. URL: /pair/${s.shortCode}. Expires: ${s.expiresAt}` });
   });
 
+  app.post("/telegram/simple_pair/approve", (req, res) => {
+    const owner = String(req.header("x-telegram-owner") || "false") === "true";
+    if (!owner) return error(res, 403, "forbidden", "owner only");
+
+    const requestId = String(req.body?.requestId || "").trim();
+    if (!requestId) return error(res, 400, "bad_request", "requestId is required");
+
+    const s = store.approve(requestId);
+    if (!s) return error(res, 404, "not_found", "request not found or invalid state");
+    audit.record({ type: "pair_approved", actor: "telegram:owner", sessionId: s.sessionId, requestId, ip: req.ip, ua: req.header("user-agent") });
+    res.json({ ok: true, approved: true, requestId, message: `Approved request: ${requestId}` });
+  });
+
+  app.get("/telegram/simple_pair/pending", (req, res) => {
+    const owner = String(req.header("x-telegram-owner") || "false") === "true";
+    if (!owner) return error(res, 403, "forbidden", "owner only");
+
+    const pending = store.pendingList().map((p) => ({ requestId: p.requestId, sessionId: p.sessionId, createdAt: p.createdAt, deviceName: p.claimMeta?.deviceName }));
+    res.json({ ok: true, pending });
+  });
+
   app.post("/telegram/simple_pair/approve-latest", (req, res) => {
     const owner = String(req.header("x-telegram-owner") || "false") === "true";
     if (!owner) return error(res, 403, "forbidden", "owner only");
