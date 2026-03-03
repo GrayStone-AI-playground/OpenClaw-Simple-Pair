@@ -121,10 +121,10 @@ export function createApp() {
       pending: true,
       requestId: claimed?.requestId,
       approval: {
-        method: "telegram_or_web",
+        method: "simple_pair_backend",
         instruction: "Owner approval required",
-        nextCommand: "/pair approve",
-        webEndpoint: "POST /pair/approve"
+        nextCommand: "/simple_pair_approve",
+        webEndpoint: "POST /pair/approve or POST /pair/approve-latest"
       }
     });
   });
@@ -144,6 +144,15 @@ export function createApp() {
     res.json({ ok: true, approved: true, requestId });
   });
 
+  app.post("/pair/approve-latest", requireApprove, (req, res) => {
+    const latest = store.latestPending();
+    if (!latest?.requestId) return error(res, 404, "not_found", "no pending approval request");
+    const s = store.approve(latest.requestId);
+    if (!s) return error(res, 404, "not_found", "request not found or invalid state");
+    audit.record({ type: "pair_approved", actor: "dashboard:owner", sessionId: s.sessionId, requestId: latest.requestId, ip: req.ip, ua: req.header("user-agent") });
+    res.json({ ok: true, approved: true, requestId: latest.requestId, via: "latest" });
+  });
+
   app.post("/telegram/simple_pair", (req, res) => {
     const owner = String(req.header("x-telegram-owner") || "false") === "true";
     if (!owner) return error(res, 403, "forbidden", "owner only");
@@ -156,6 +165,18 @@ export function createApp() {
     const s = store.create(300, { type: "telegram", id: "owner" });
     audit.record({ type: "simple_pair_started", actor: "telegram:owner", sessionId: s.sessionId, ip: req.ip, ua: req.header("user-agent") });
     res.json({ ok: true, reused: false, message: `Simple Pair started. Code: ${s.shortCode}. URL: /pair/${s.shortCode}. Expires: ${s.expiresAt}` });
+  });
+
+  app.post("/telegram/simple_pair/approve-latest", (req, res) => {
+    const owner = String(req.header("x-telegram-owner") || "false") === "true";
+    if (!owner) return error(res, 403, "forbidden", "owner only");
+
+    const latest = store.latestPending();
+    if (!latest?.requestId) return error(res, 404, "not_found", "no pending approval request");
+    const s = store.approve(latest.requestId);
+    if (!s) return error(res, 404, "not_found", "request not found or invalid state");
+    audit.record({ type: "pair_approved", actor: "telegram:owner", sessionId: s.sessionId, requestId: latest.requestId, ip: req.ip, ua: req.header("user-agent") });
+    res.json({ ok: true, approved: true, requestId: latest.requestId, message: `Approved latest pending request: ${latest.requestId}` });
   });
 
   app.get("/pair", (_req, res) => {
