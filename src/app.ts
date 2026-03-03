@@ -47,7 +47,16 @@ export function createApp() {
   app.post("/simple_pair", requireStart, (req, res) => {
     const existing = store.active();
     if (existing) {
-      return error(res, 409, "active_session_exists", "an active pairing session already exists");
+      return res.json({
+        ok: true,
+        reused: true,
+        sessionId: existing.sessionId,
+        expiresAt: existing.expiresAt,
+        shortCode: existing.shortCode,
+        pairUrl: "/pair",
+        prefillUrl: `/pair/${existing.shortCode}`,
+        qrPayload: `/pair/${existing.shortCode}`
+      });
     }
 
     const ttlSeconds = Number(req.body?.ttlSeconds || 300);
@@ -55,6 +64,7 @@ export function createApp() {
     audit.record({ type: "simple_pair_started", actor: "dashboard:owner", sessionId: s.sessionId, ip: req.ip, ua: req.header("user-agent") });
     res.json({
       ok: true,
+      reused: false,
       sessionId: s.sessionId,
       expiresAt: s.expiresAt,
       shortCode: s.shortCode,
@@ -135,12 +145,12 @@ export function createApp() {
 
     const existing = store.active();
     if (existing) {
-      return error(res, 409, "active_session_exists", "an active pairing session already exists");
+      return res.json({ ok: true, reused: true, message: `Simple Pair active. Code: ${existing.shortCode}. URL: /pair/${existing.shortCode}. Expires: ${existing.expiresAt}` });
     }
 
     const s = store.create(300, { type: "telegram", id: "owner" });
     audit.record({ type: "simple_pair_started", actor: "telegram:owner", sessionId: s.sessionId, ip: req.ip, ua: req.header("user-agent") });
-    res.json({ ok: true, message: `Simple Pair started. Code: ${s.shortCode}. URL: /pair/${s.shortCode}. Expires: ${s.expiresAt}` });
+    res.json({ ok: true, reused: false, message: `Simple Pair started. Code: ${s.shortCode}. URL: /pair/${s.shortCode}. Expires: ${s.expiresAt}` });
   });
 
   app.get("/pair", (_req, res) => {
