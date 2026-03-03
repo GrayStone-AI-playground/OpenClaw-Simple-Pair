@@ -3,10 +3,10 @@
 This repository implements the approved v1 shape in standalone form.
 
 ## Included
-- `POST /simple_pair` (owner-only)
-- `/pair` and `/pair/:code` page (active-window gated)
-- `POST /pair/resolve`
-- `POST /pair/claim` (explicit action only)
+- `POST /simple_pair` (owner-only, single-active-session policy with 409 on conflict)
+- `/pair` and `/pair/:code` page (active-window gated; `/pair/:code` prefills code without auto-claim)
+- `POST /pair/resolve` (in-memory per-IP rate limit)
+- `POST /pair/claim` (explicit action only; in-memory per-IP rate limit)
 - `GET /pair/claim-status`
 - `POST /pair/approve` (owner-only)
 - telegram starter stub: `POST /telegram/simple_pair`
