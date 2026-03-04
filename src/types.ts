@@ -17,4 +17,5 @@ export interface PairSession {
   createdBy: { type: "dashboard" | "telegram"; id: string };
   claimMeta?: { ip?: string; ua?: string; clientKind?: string; deviceName?: string };
   requestId?: string;
+  gatewayRequestId?: string;
 }

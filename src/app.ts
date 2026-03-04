@@ -2,6 +2,7 @@ import express from "express";
 import path from "node:path";
 import fs from "node:fs";
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { PairStore } from "./store.js";
 import { requireApprove, requireStart } from "./auth.js";
@@ -48,6 +49,45 @@ function readGatewayToken(): string | null {
   } catch {
     return null;
   }
+}
+
+type DevicePending = {
+  requestId: string;
+  remoteIp?: string;
+  clientId?: string;
+  role?: string;
+  ts?: number;
+};
+
+function listGatewayPending(): DevicePending[] {
+  try {
+    const out = execFileSync('openclaw', ['devices', 'list', '--json'], { encoding: 'utf8', timeout: 7000 });
+    const j = JSON.parse(out);
+    return Array.isArray(j?.pending) ? j.pending : [];
+  } catch {
+    return [];
+  }
+}
+
+function approveGatewayRequest(requestId: string): boolean {
+  try {
+    execFileSync('openclaw', ['devices', 'approve', requestId, '--json'], { encoding: 'utf8', timeout: 7000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function tryApproveMatchingGatewayRequest(ip?: string): string | undefined {
+  const pending = listGatewayPending()
+    .filter((p) => p?.requestId && p.clientId === 'openclaw-control-ui' && p.role === 'operator')
+    .sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+  const exact = ip ? pending.find((p) => p.remoteIp === ip) : undefined;
+  const target = exact || pending[0];
+  if (!target?.requestId) return undefined;
+  const ok = approveGatewayRequest(target.requestId);
+  return ok ? target.requestId : undefined;
 }
 
 
@@ -196,8 +236,10 @@ export function createApp() {
     const requestId = String(req.body?.requestId || "");
     const s = store.approve(requestId);
     if (!s) return error(res, 404, "not_found", "request not found or invalid state");
+    const gwRequestId = tryApproveMatchingGatewayRequest(s.claimMeta?.ip);
+    if (gwRequestId) s.gatewayRequestId = gwRequestId;
     audit.record({ type: "pair_approved", actor: "dashboard:owner", sessionId: s.sessionId, requestId, ip: req.ip, ua: req.header("user-agent") });
-    res.json({ ok: true, approved: true, requestId });
+    res.json({ ok: true, approved: true, requestId, gatewayApproved: Boolean(gwRequestId), gatewayRequestId: gwRequestId });
   });
 
   app.post("/pair/approve-latest", requireApprove, (req, res) => {
@@ -213,8 +255,10 @@ export function createApp() {
     if (!latest?.requestId) return error(res, 404, "not_found", "no pending approval request");
     const s = store.approve(latest.requestId);
     if (!s) return error(res, 404, "not_found", "request not found or invalid state");
+    const gwRequestId = tryApproveMatchingGatewayRequest(s.claimMeta?.ip);
+    if (gwRequestId) s.gatewayRequestId = gwRequestId;
     audit.record({ type: "pair_approved", actor: "dashboard:owner", sessionId: s.sessionId, requestId: latest.requestId, ip: req.ip, ua: req.header("user-agent") });
-    res.json({ ok: true, approved: true, requestId: latest.requestId, via: "latest" });
+    res.json({ ok: true, approved: true, requestId: latest.requestId, via: "latest", gatewayApproved: Boolean(gwRequestId), gatewayRequestId: gwRequestId });
   });
 
   app.post("/telegram/simple_pair", (req, res) => {
@@ -240,8 +284,10 @@ export function createApp() {
 
     const s = store.approve(requestId);
     if (!s) return error(res, 404, "not_found", "request not found or invalid state");
+    const gwRequestId = tryApproveMatchingGatewayRequest(s.claimMeta?.ip);
+    if (gwRequestId) s.gatewayRequestId = gwRequestId;
     audit.record({ type: "pair_approved", actor: "telegram:owner", sessionId: s.sessionId, requestId, ip: req.ip, ua: req.header("user-agent") });
-    res.json({ ok: true, approved: true, requestId, message: `Approved request: ${requestId}` });
+    res.json({ ok: true, approved: true, requestId, gatewayApproved: Boolean(gwRequestId), gatewayRequestId: gwRequestId, message: `Approved request: ${requestId}` });
   });
 
   app.get("/telegram/simple_pair/pending", (req, res) => {
@@ -269,8 +315,10 @@ export function createApp() {
     if (!latest?.requestId) return error(res, 404, "not_found", "no pending approval request");
     const s = store.approve(latest.requestId);
     if (!s) return error(res, 404, "not_found", "request not found or invalid state");
+    const gwRequestId = tryApproveMatchingGatewayRequest(s.claimMeta?.ip);
+    if (gwRequestId) s.gatewayRequestId = gwRequestId;
     audit.record({ type: "pair_approved", actor: "telegram:owner", sessionId: s.sessionId, requestId: latest.requestId, ip: req.ip, ua: req.header("user-agent") });
-    res.json({ ok: true, approved: true, requestId: latest.requestId, message: `Approved latest pending request: ${latest.requestId}` });
+    res.json({ ok: true, approved: true, requestId: latest.requestId, gatewayApproved: Boolean(gwRequestId), gatewayRequestId: gwRequestId, message: `Approved latest pending request: ${latest.requestId}` });
   });
 
   app.get("/pair", (_req, res) => {
