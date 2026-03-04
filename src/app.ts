@@ -1,6 +1,5 @@
 import express from "express";
 import path from "node:path";
-import fs from "node:fs";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { PairStore } from "./store.js";
@@ -38,17 +37,6 @@ const allowClaim = createWindowRateLimiter(10, 60_000);
 type Handoff = { id: string; sessionId: string; expiresAt: number; used: boolean };
 const handoffs = new Map<string, Handoff>();
 
-function readGatewayToken(): string | null {
-  const fromEnv = process.env.GATEWAY_AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN;
-  if (fromEnv) return fromEnv;
-  try {
-    const raw = fs.readFileSync('/home/user/.openclaw/openclaw.json', 'utf8');
-    const j = JSON.parse(raw);
-    return j?.gateway?.auth?.token || null;
-  } catch {
-    return null;
-  }
-}
 
 export function createApp() {
   const app = express();
@@ -172,11 +160,8 @@ export function createApp() {
     if (h.used) return error(res, 409, 'used', 'handoff already used');
     if (h.expiresAt < Date.now()) return error(res, 410, 'expired', 'handoff expired');
 
-    const token = readGatewayToken();
-    if (!token) return error(res, 500, 'gateway_token_unavailable', 'gateway token unavailable');
-
     h.used = true;
-    res.json({ ok: true, dashboardUrl: 'https://localhost/', gatewayToken: token, note: 'One-time handoff redeemed. Paste token in Control UI settings.' });
+    res.json({ ok: true, dashboardUrl: '/', note: 'One-time handoff redeemed.' });
   });
 
   app.get("/pair/pending", requireApprove, (_req, res) => {

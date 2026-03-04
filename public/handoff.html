@@ -5,7 +5,6 @@
     <h1>Dashboard Handoff</h1>
     <p id="status">Redeeming one-time handoff…</p>
     <p><a id="dash" href="#" style="display:none;">Open Dashboard</a></p>
-    <textarea id="token" rows="4" cols="90" style="display:none;"></textarea>
     <p id="note"></p>
     <script>
       async function run(){
@@ -17,14 +16,12 @@
           document.getElementById('status').textContent = 'Handoff failed: ' + (j?.error?.message || 'unknown');
           return;
         }
-        document.getElementById('status').textContent = 'Handoff ready. Paste token into Control UI settings.';
+        document.getElementById('status').textContent = 'Handoff ready. Opening dashboard…';
         const a=document.getElementById('dash');
-        a.href = j.dashboardUrl;
+        a.href = j.dashboardUrl || '/';
         a.style.display='inline';
-        const t=document.getElementById('token');
-        t.value = j.gatewayToken;
-        t.style.display='block';
         document.getElementById('note').textContent = j.note || '';
+        setTimeout(()=>{ window.location.href = (j.dashboardUrl || '/'); }, 500);
       }
       run();
     </script>
