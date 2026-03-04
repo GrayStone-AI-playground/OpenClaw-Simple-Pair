@@ -17,11 +17,12 @@
           return;
         }
         document.getElementById('status').textContent = 'Handoff ready. Opening dashboard…';
+        const target = '/'; // stay on same origin so secure cookie host matches
         const a=document.getElementById('dash');
-        a.href = j.dashboardUrl;
+        a.href = target;
         a.style.display='inline';
         document.getElementById('note').textContent = j.note || '';
-        setTimeout(()=>{ window.location.href = j.dashboardUrl; }, 800);
+        setTimeout(()=>{ window.location.href = target; }, 800);
       }
       run();
     </script>

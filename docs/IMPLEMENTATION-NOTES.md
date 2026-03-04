@@ -31,6 +31,7 @@ This repository implements the approved simple-pair flow with web + telegram coh
 
 - `POST /pair/handoff/create` (requires approved pair session)
 - `GET /pair/handoff/:id` (handoff UI)
+  - redirects to `/` on the same origin after redeem (avoids host mismatch cookie loss)
 - `POST /pair/handoff/redeem` (one-time, 60s handoff)
   - issues `sp_handoff_session` cookie
   - does **not** return gateway token

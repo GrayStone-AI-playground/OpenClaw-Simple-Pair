@@ -54,6 +54,7 @@ You can run this system in two modes:
 5. **One-time redeem + proxy session**
    - Redeem endpoint sets short-lived HttpOnly cookie (`sp_handoff_session`).
    - Validator endpoint (`/auth/session/validate`) confirms session and emits identity header for proxy integration.
+   - Handoff UI should keep redirect on the same origin (avoid hostname switching that drops host-scoped cookie context).
 
 6. **Dashboard access**
    - For true tokenless access, run Gateway in trusted-proxy mode and wire reverse proxy forward-auth (details in `docs/AUTH-MODE-SWITCH.md`).

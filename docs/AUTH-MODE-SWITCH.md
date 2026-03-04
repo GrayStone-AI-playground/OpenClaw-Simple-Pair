@@ -27,6 +27,25 @@ Use forward auth for dashboard paths and bypass for simple-pair routes:
 
 forward_auth should call `/auth/session/validate` on simple-pair backend and copy `X-Forwarded-User`.
 
+### Hybrid local/proxied layout (recommended)
+
+For setups that need both:
+- strict trusted-proxy for user-facing dashboard handoff, and
+- reliable local automation/control access,
+
+run a separate loopback-only bridge listener (for example `127.0.0.1:18790`) that injects required trusted-proxy headers and reverse-proxies to gateway `127.0.0.1:18789`.
+
+This keeps:
+- direct raw gateway (`18789`) guarded by trusted-proxy checks,
+- proxied dashboard path functioning tokenless,
+- local automation calls working via the bridge.
+
+### Cookie/hostname gotcha
+
+`sp_handoff_session` is host-scoped. If handoff redeem occurs on one hostname and redirect jumps to another hostname (e.g. `gateway-host` -> `gateway.example.com`), validator sees `missing session cookie`.
+
+Mitigation: handoff UI should redirect to `/` on the current origin after redeem, not to a potentially different absolute host.
+
 ## Rollback plan
 
 If trusted-proxy mode causes auth problems:
