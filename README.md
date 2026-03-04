@@ -1,22 +1,49 @@
 # OpenClaw Simple Pair
 
-Minimal implementation of the approved Simple Pair v1 flow:
-- `/simple_pair` (owner-only start)
-- `/pair` page with short-code resolve + explicit claim
-- `/pair/approve` (owner-only web approval)
-- Telegram starter hook (`/telegram/simple_pair` endpoint stub)
+Simple Pair service for short-code dashboard onboarding with owner approval.
+
+## What it does
+
+- Starts/reuses pairing windows via `/simple_pair` and `/telegram/simple_pair`
+- Lets the browser resolve + claim with a short code (`/pair`)
+- Requires explicit owner approval (`/pair/approve*` or telegram approve endpoints)
+- Auto-approves matching **gateway device pairing** on simple-pair approval
+- Generates one-time handoff links and redirects to tokenized dashboard URL
+- Persists pair sessions across service restarts (file-backed mini DB)
+
+## Key endpoints
+
+- `POST /simple_pair`
+- `POST /pair/resolve`
+- `POST /pair/claim`
+- `GET /pair/claim-status`
+- `POST /pair/approve`
+- `POST /pair/approve-latest`
+- `POST /pair/handoff/create`
+- `POST /pair/handoff/redeem`
+- `POST /telegram/simple_pair`
+- `POST /telegram/simple_pair/approve`
+- `POST /telegram/simple_pair/approve-latest`
+
+## Security + persistence defaults
+
+Configured via service env:
+
+- `SIMPLE_PAIR_DB_PATH=/home/user/openclaw-ws/OpenClaw-Simple-Pair/data/pair-store.json`
+- `SIMPLE_PAIR_RETENTION_DAYS=14`
+- `UMask=0077`
+
+Runtime behavior:
+
+- DB dir/file hardened to `0700/0600`
+- one-time handoff IDs expire quickly and are single-use
+- basic rate limits on resolve/claim routes
 
 ## Run
 
 ```bash
 npm install
-npm run test
+npm test
 npm run build
 npm start
 ```
-
-## Note
-This repo provides standalone implementation scaffolding. Integrate with your OpenClaw dashboard auth/session middleware in your host application.
-
-## Validation
-See `docs/VALIDATION.md` for test/build/smoke-check commands and sample outputs.
