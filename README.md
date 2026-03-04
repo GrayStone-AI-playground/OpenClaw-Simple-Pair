@@ -11,25 +11,15 @@ Simple Pair service for short-code dashboard onboarding with owner approval.
 - Generates one-time handoff links and redirects to tokenized dashboard URL
 - Persists pair sessions across service restarts (file-backed mini DB)
 
-## Key endpoints
+## API
 
-- `POST /simple_pair`
-- `POST /pair/resolve`
-- `POST /pair/claim`
-- `GET /pair/claim-status`
-- `POST /pair/approve`
-- `POST /pair/approve-latest`
-- `POST /pair/handoff/create`
-- `POST /pair/handoff/redeem`
-- `POST /telegram/simple_pair`
-- `POST /telegram/simple_pair/approve`
-- `POST /telegram/simple_pair/approve-latest`
+API routes are documented in [`docs/API.md`](docs/API.md).
 
 ## Security + persistence defaults
 
 Configured via service env:
 
-- `SIMPLE_PAIR_DB_PATH=/home/user/openclaw-ws/OpenClaw-Simple-Pair/data/pair-store.json`
+- `SIMPLE_PAIR_DB_PATH=./data/pair-store.json`
 - `SIMPLE_PAIR_RETENTION_DAYS=14`
 - `UMask=0077`
 

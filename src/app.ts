@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { PairStore } from "./store.js";
 import { requireApprove, requireStart } from "./auth.js";
@@ -43,7 +44,8 @@ function readGatewayToken(): string | null {
   const fromEnv = process.env.GATEWAY_AUTH_TOKEN || process.env.OPENCLAW_GATEWAY_TOKEN;
   if (fromEnv) return fromEnv;
   try {
-    const raw = fs.readFileSync('/home/user/.openclaw/openclaw.json', 'utf8');
+    const configPath = process.env.OPENCLAW_CONFIG_PATH || `${os.homedir()}/.openclaw/openclaw.json`;
+    const raw = fs.readFileSync(configPath, 'utf8');
     const j = JSON.parse(raw);
     return j?.gateway?.auth?.token || null;
   } catch {
